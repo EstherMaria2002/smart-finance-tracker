@@ -1,0 +1,11 @@
+# Swagger deshabilitado en producción.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    root: INFO
+    com.sft: INFO

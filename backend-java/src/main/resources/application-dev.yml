@@ -1,0 +1,4 @@
+logging:
+  level:
+    com.sft: DEBUG
+    org.hibernate.SQL: WARN

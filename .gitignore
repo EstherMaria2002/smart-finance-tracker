@@ -1,0 +1,32 @@
+# Secretos
+.env
+.env.*
+!.env.example
+
+# Node / frontend
+node_modules/
+dist/
+
+# Java / Maven
+target/
+*.class
+
+# Python / ML
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+# El modelo se entrena en el build de la imagen; models/.gitkeep mantiene la carpeta
+*.joblib
+
+# Docker / datos locales
+pgdata/
+
+# IDEs y SO
+.idea/
+.vscode/
+*.iml
+.DS_Store
+*.log
+*.tmp

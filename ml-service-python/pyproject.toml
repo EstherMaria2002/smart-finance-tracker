@@ -1,0 +1,17 @@
+[project]
+name = "sft-ml-service"
+version = "0.1.0"
+description = "Servicio interno de categorización de transacciones (Smart Finance Tracker)"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi==0.115.5",
+  "uvicorn[standard]==0.32.1",
+  "scikit-learn==1.5.2",
+  "pandas==2.2.3",
+  "joblib==1.4.2",
+  "pydantic-settings==2.6.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

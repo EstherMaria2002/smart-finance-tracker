@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: smart-finance-tracker
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/sft}
+    username: ${SPRING_DATASOURCE_USERNAME:sft}
+    password: ${SPRING_DATASOURCE_PASSWORD:sft}
+  jpa:
+    # El esquema lo gestiona Flyway. NUNCA "update"/"create": Hibernate solo VALIDA
+    # que las entidades coincidan con las tablas creadas por las migraciones.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  autoconfigure:
+    # Usamos JWT propio: evita el usuario por defecto con password aleatoria en el log.
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+
+server:
+  port: 8080
+
+sft:
+  jwt:
+    secret: ${JWT_SECRET}                       # obligatorio, >= 32 caracteres
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  ml:
+    base-url: ${ML_SERVICE_URL:http://localhost:8000}
+    api-key: ${ML_INTERNAL_API_KEY:}
+    timeout-ms: ${ML_TIMEOUT_MS:800}
+    # Si el ML responde con menos confianza que esto, se prefieren las reglas por palabra clave.
+    min-confidence: ${ML_MIN_CONFIDENCE:0.30}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      mlService:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true

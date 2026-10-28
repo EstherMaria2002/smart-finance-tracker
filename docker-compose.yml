@@ -1,0 +1,76 @@
+# Smart Finance Tracker — entorno de desarrollo
+# Uso:  cp .env.example .env  &&  docker compose up --build
+#
+# Seguridad: el ML service NO tiene ruta desde el navegador. Solo el backend
+# Spring le habla (red interna de compose + X-Internal-Api-Key). El puerto
+# 8000 se publica únicamente en 127.0.0.1 para poder depurar con curl desde tu máquina.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sft}
+      POSTGRES_USER: ${POSTGRES_USER:-sft}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sft}
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sft} -d ${POSTGRES_DB:-sft}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ml-service:
+    build: ./ml-service-python
+    environment:
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?Define INTERNAL_API_KEY en el fichero .env}
+    ports: ["127.0.0.1:8000:8000"]
+    # El ML no usa la BD, pero se ordena el arranque tras Postgres (como pide el diseño).
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build: ./backend-java
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-sft}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-sft}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-sft}
+      ML_SERVICE_URL: http://ml-service:8000
+      ML_INTERNAL_API_KEY: ${INTERNAL_API_KEY:?Define INTERNAL_API_KEY en el fichero .env}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET (mínimo 32 caracteres) en el fichero .env}
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+    ports: ["8080:8080"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      ml-service: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 40s
+
+  frontend:
+    build: ./frontend-react
+    environment:
+      # Lo lee el navegador, por eso apunta a localhost y no al nombre del servicio.
+      VITE_API_URL: http://localhost:8080
+    ports: ["5173:5173"]
+    depends_on:
+      backend: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5173/ >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 15s
+
+volumes:
+  pgdata:
